@@ -60,7 +60,7 @@ def main():
         'ctl00$pgContent1$btnLogin': 'Sign-In'
     })
     if 'Logout' not in resp.text:
-        logging.error(f'Login failed, body: {resp.text}')
+        logging.error('Login failed, body: {}'.format(resp.text))
         return
     logging.info('Login successfully')
 
@@ -74,7 +74,7 @@ def main():
             'ctl00$pgContent1$uiCountries': '',
         })
         if 'successful' not in resp.text:
-            logging.error(f'Failed to submit temperature, body: {resp.text}')
+            logging.error('Failed to submit temperature, body: {}'.format(resp.text))
         else:
             logging.info('Temperature submitted successfully')
 
@@ -89,7 +89,7 @@ def main():
             'ctl00$pgContent1$btnSave': 'Submit'
         })
         if 'successful' not in resp.text:
-            logging.error(f'Failed to submit daily declaration, body: {resp.text}')
+            logging.error('Failed to submit daily declaration, body: {}'.format(resp.text))
         else:
             logging.info('Daily declaration submitted successfully')
 
