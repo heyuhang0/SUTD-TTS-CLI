@@ -33,7 +33,7 @@ class AspxSession():
         if r.status_code != 200:
             return
         for key in self.session_states:
-            matches = re.findall(rf'id="{key}" value="(.*?)"', r.text)
+            matches = re.findall(r'id="{}" value="(.*?)"'.format(key), r.text)
             self.session_states[key] = matches[0] if matches else None
 
     def get(self, url: str, update_state=True) -> requests.Response:
