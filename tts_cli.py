@@ -117,8 +117,6 @@ def main():
         else:
             logging.info('Daily declaration submitted successfully')
 
-    logging.info('Submitted :)')
-
 
 if __name__ == "__main__":
     main()
