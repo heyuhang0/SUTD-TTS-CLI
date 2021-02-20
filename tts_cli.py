@@ -1,37 +1,50 @@
 ''' SUTD Temperature Taking System Command Line Interface '''
 from typing import Any, Dict
-import requests
 import logging
 import re
+import time
 import argparse
+import requests
+import muggle_ocr
+
+
+OCR_MODEL = muggle_ocr.SDK(conf_path="./captcha_model/TTS_Captcha-CNNX-GRU-H64-CTC-C1_model.yaml")
 
 
 class AspxSession():
     def __init__(self) -> None:
         self.session = requests.Session()
-        self.view_state = None
-        self.view_state_generator = None
-        self.event_validation = None
+        self.session_states = {
+            '__VIEWSTATE': None,
+            '__VIEWSTATEGENERATOR': None,
+            '__EVENTTARGET': None,
+            '__EVENTARGUMENT': None,
+            '__EVENTVALIDATION': None,
+            '__LASTFOCUS': None,
+        }
+        self.headers = {
+            "User-Agent":
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/85.0.4183.121 Safari/537.36"
+        }
 
     def _update_state(self, r: requests.Response) -> None:
         if r.status_code != 200:
             return
-        self.view_state = re.findall(r'id="__VIEWSTATE" value="(.*?)"', r.text)
-        self.view_state_generator = re.findall(r'id="__VIEWSTATEGENERATOR" value="(.*?)"', r.text)
-        self.event_validation = re.findall(r'id="__EVENTVALIDATION" value="(.*?)"', r.text)
+        for key in self.session_states:
+            matches = re.findall(rf'id="{key}" value="(.*?)"', r.text)
+            self.session_states[key] = matches[0] if matches else None
 
-    def get(self, url: str) -> requests.Response:
+    def get(self, url: str, update_state=True) -> requests.Response:
         response = self.session.get(url)
-        self._update_state(response)
+        if update_state:
+            self._update_state(response)
         return response
 
     def post(self, url: str, data: Dict[str, Any]) -> requests.Response:
-        data.update({
-            '__VIEWSTATE': self.view_state,
-            '__VIEWSTATEGENERATOR': self.view_state_generator,
-            '__EVENTVALIDATION': self.event_validation,
-        })
-        response = self.session.post(url, data=data)
+        data.update({k: v for k, v in self.session_states.items() if v is not None})
+        response = self.session.post(url, data=data, headers=self.headers)
         self._update_state(response)
         return response
 
@@ -53,13 +66,24 @@ def main():
 
     s = AspxSession()
 
-    s.get('https://tts.sutd.edu.sg/tt_home_user.aspx')
-    resp = s.post('https://tts.sutd.edu.sg/tt_login.aspx', data={
-        'ctl00$pgContent1$uiLoginid': args.username,
-        'ctl00$pgContent1$uiPassword': args.password,
-        'ctl00$pgContent1$btnLogin': 'Sign-In'
-    })
-    if 'Logout' not in resp.text:
+    for _ in range(5):
+        s.get('https://tts.sutd.edu.sg')
+
+        captcha_img = s.get('https://tts.sutd.edu.sg/CImage.aspx', update_state=False)
+        captcha = OCR_MODEL.predict(captcha_img.content)
+        logging.info('CAPTCHA recognized: {}'.format(captcha))
+
+        resp = s.post('https://tts.sutd.edu.sg/tt_login.aspx', data={
+            'ctl00$pgContent1$uiLoginid': args.username,
+            'ctl00$pgContent1$uiPassword': args.password,
+            'ctl00$pgContent1$txtVerificationCode': captcha,
+            'ctl00$pgContent1$btnLogin': 'Sign-In'
+        })
+        if 'Logout' in resp.text:
+            break
+        logging.error('Login failed, retry in 5 seconds')
+        time.sleep(5)
+    else:
         logging.error('Login failed, body: {}'.format(resp.text))
         return
     logging.info('Login successfully')
@@ -92,6 +116,8 @@ def main():
             logging.error('Failed to submit daily declaration, body: {}'.format(resp.text))
         else:
             logging.info('Daily declaration submitted successfully')
+
+    logging.info('Submitted :)')
 
 
 if __name__ == "__main__":
