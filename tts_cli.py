@@ -106,8 +106,11 @@ def main():
         s.get('https://tts.sutd.edu.sg/tt_daily_dec_user.aspx')
         resp = s.post('https://tts.sutd.edu.sg/tt_daily_dec_user.aspx', data={
             'ctl00$uiMenu': 'Choose an Action',
+            'ctl00$pgContent1$cbSetToNo': 'on',
+            'ctl00$pgContent1$uiCountries': '',
             'ctl00$pgContent1$OtherCountryVisited': 'rbVisitOtherCountryNo',
-            'ctl00$pgContent1$Notice': 'rbNoticeNo',
+            'ctl00$pgContent1$Notice': 'rbQONoticeNo',
+            'ctl00$pgContent1$NoticeSHN': 'rbSHNNoticeNo',
             'ctl00$pgContent1$Contact': 'rbContactNo',
             'ctl00$pgContent1$MC': 'rbMCNo',
             'ctl00$pgContent1$btnSave': 'Submit'
