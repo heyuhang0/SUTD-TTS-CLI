@@ -1,14 +1,14 @@
 ''' SUTD Temperature Taking System Command Line Interface '''
-from typing import Any, Dict
-import logging
-import re
-import time
 import argparse
+import logging
+import os
+import random
+import re
+import sys
+import time
+from typing import Any, Dict
+
 import requests
-import muggle_ocr
-
-
-OCR_MODEL = muggle_ocr.SDK(conf_path="./captcha_model/TTS_Captcha-CNNX-GRU-H64-CTC-C1_model.yaml")
 
 
 class AspxSession():
@@ -52,7 +52,8 @@ class AspxSession():
 def main():
     logging.basicConfig(
         format='%(asctime)s %(name)-12s %(levelname)-8s %(message)s',
-        level=logging.DEBUG
+        level=logging.DEBUG,
+        stream=sys.stdout
     )
 
     parser = argparse.ArgumentParser(description=__doc__)
@@ -60,9 +61,22 @@ def main():
                         help='submit temperature taking result')
     parser.add_argument('-d', '--daily-declaration', action='store_true',
                         help='submit daily declaration')
+    parser.add_argument('--sleep', type=int)
+    parser.add_argument('--random-sleep', type=int)
     parser.add_argument('username', type=str, help='SUTD Student ID')
     parser.add_argument('password', type=str, help='SUTD Password')
     args = parser.parse_args()
+
+    if args.random_sleep:
+        args.sleep = random.randint(0, args.random_sleep)
+    if args.sleep:
+        logging.info('Sleep for {} seconds'.format(args.sleep))
+        time.sleep(args.sleep)
+
+    import muggle_ocr
+    project_path = os.path.dirname(os.path.realpath(__file__))
+    config_path = os.path.join(project_path, 'captcha_model', 'TTS_Captcha-CNNX-GRU-H64-CTC-C1_model.yaml')
+    ocr_model = muggle_ocr.SDK(conf_path=config_path)
 
     s = AspxSession()
 
@@ -70,7 +84,7 @@ def main():
         s.get('https://tts.sutd.edu.sg')
 
         captcha_img = s.get('https://tts.sutd.edu.sg/CImage.aspx', update_state=False)
-        captcha = OCR_MODEL.predict(captcha_img.content)
+        captcha = ocr_model.predict(captcha_img.content)
         logging.info('CAPTCHA recognized: {}'.format(captcha))
 
         resp = s.post('https://tts.sutd.edu.sg/tt_login.aspx', data={
